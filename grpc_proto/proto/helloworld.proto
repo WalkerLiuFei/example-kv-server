@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package helloworld;
+
+service HelloService {
+  rpc Hello (HelloRequest) returns (HelloResponse);
+  rpc cache_kv(CacheKVRequest) returns (CacheKVResponse);
+}
+
+message HelloRequest {
+  string name = 1;
+}
+
+message HelloResponse {
+  string message = 1;
+}
+
+
+message CacheKVRequest {
+  string key = 1;
+  string value = 2;
+  int64 timeout = 3;
+}
+
+message CacheKVResponse {
+  string message = 1;
+}
