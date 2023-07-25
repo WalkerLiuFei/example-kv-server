@@ -1,15 +1,10 @@
 use std::sync::Arc;
 
-use grpc_proto::pb::{CacheKvRequest, CacheKvResponse, hello_service_server, HelloRequest, HelloResponse};
-use grpc_proto::pb::hello_service_server::HelloService;
-use grpc_proto::pb::{hello_service_server::HelloServiceServer,FILE_DESCRIPTOR_SET};
-use grpc_proto::pb;
-
+use grpc_proto::pb::{CacheKvRequest, CacheKvResponse, HelloRequest, HelloResponse};
+use grpc_proto::pb::{FILE_DESCRIPTOR_SET, hello_service_server::HelloServiceServer,hello_service_server::HelloService};
 use redis::{Commands, Connection};
 use tokio::sync::Mutex;
-use tonic;
 use tonic::{Code, Request, Response, Status, transport::Server};
-use tonic::codegen::http::request;
 use tonic_reflection::server;
 
 pub struct MyGreeter {
@@ -42,9 +37,9 @@ impl HelloService for MyGreeter {
 
 impl MyGreeter {
     fn new(redis_con: Arc<Mutex<Connection>>) -> MyGreeter {
-        return MyGreeter {
+        MyGreeter {
             redis_con,
-        };
+        }
     }
 }
 
@@ -54,13 +49,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let addr = "0.0.0.0:50051".parse()?;
 
     let redis_con = Arc::new(Mutex::new(redis::Client::open("redis://default:redispw@localhost:55000")?.get_connection()?));
-    let mut greeter = MyGreeter::new(redis_con);
+    let greeter = MyGreeter::new(redis_con);
 
-     let reflection = server::Builder::configure()
+    let reflection = server::Builder::configure()
         .register_encoded_file_descriptor_set(FILE_DESCRIPTOR_SET)
         .build()
         .unwrap();
-
 
     Server::builder()
         .add_service(reflection)
