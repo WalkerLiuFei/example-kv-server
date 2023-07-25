@@ -1,0 +1,44 @@
+# Compiled Files
+################
+*.o
+*.so
+*.rlib
+*.dll
+*.dylib
+*.exe
+*.a
+*.pdb
+*.lib
+*.bin
+*.deb
+*.d
+*.rs.bk
+*~
+
+# Project Files
+################
+*/target/
+**/Cargo.lock
+/target
+
+# JetBrains IDEs
+################
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Environment Files
+###################
+.env
+.DS_Store
+
+# Other
+######
+*.lock
+*.tmp
+*.bak
+*.swp
+*~
+.DS_Store
+Thumbs.db
