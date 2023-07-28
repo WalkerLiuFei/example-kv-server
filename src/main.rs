@@ -1,3 +1,5 @@
+mod mytracer;
+
 use std::sync::Arc;
 
 use grpc_proto::pb::{CacheKvRequest, CacheKvResponse, HelloRequest, HelloResponse};
@@ -6,6 +8,7 @@ use redis::{Commands, Connection};
 use tokio::sync::Mutex;
 use tonic::{Code, Request, Response, Status, transport::Server};
 use tonic_reflection::server;
+use tracing_attributes::instrument;
 
 pub struct MyGreeter {
     redis_con: Arc<Mutex<Connection>>,
@@ -21,10 +24,13 @@ impl HelloService for MyGreeter {
         Ok(Response::new(HelloResponse { message: response_str.parse().unwrap() }))
     }
 
+    #[instrument(skip(self))]
     async fn cache_kv(&self, request: Request<CacheKvRequest>) -> Result<Response<CacheKvResponse>, Status> {
         let mut redis_con = self.redis_con.try_lock().unwrap();
         let request_msg = request.into_inner();
-        match redis_con.set_ex::<_, _, ()>(request_msg.key, request_msg.value, request_msg.timeout as usize) {
+        log::info!("go to set redis kv {:?}",request_msg);
+
+        match redis_con.set_ex::<_, _, ()>(request_msg.key, request_msg.value,request_msg.timeout as usize) {
             Ok(_) => {
                 Ok(Response::new(CacheKvResponse { message: "set cache success".parse().unwrap() }))
             }
@@ -45,10 +51,14 @@ impl MyGreeter {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    env_logger::init();
+
+    mytracer::init_global_tracer();
+    //env_logger::builder().filter_level(LevelFilter::Info).init();
     let addr = "0.0.0.0:50051".parse()?;
 
-    let redis_con = Arc::new(Mutex::new(redis::Client::open("redis://default:redispw@localhost:55000")?.get_connection()?));
+    let redis_con = Arc::new(Mutex::new(redis::Client::open("redis://default:redispw@localhost:55000").
+        expect("panic, redis connect failed").get_connection().expect("failed to connect to redis")));
+
     let greeter = MyGreeter::new(redis_con);
 
     let reflection = server::Builder::configure()
@@ -63,3 +73,4 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await?;
     Ok(())
 }
+
