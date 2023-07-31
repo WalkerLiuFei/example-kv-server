@@ -1,14 +1,18 @@
+use std::io::Write;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+use env_logger::Builder;
 use grpc_proto::pb::{CacheKvRequest, CacheKvResponse, HelloRequest, HelloResponse};
 use grpc_proto::pb::{FILE_DESCRIPTOR_SET, hello_service_server::HelloService, hello_service_server::HelloServiceServer};
 use lazy_static::initialize;
-use redis::{Commands, Connection, ConnectionAddr, RedisConnectionInfo};
+use redis::{Commands, Connection, ConnectionAddr};
 use tokio::sync::Mutex;
 use tonic::{Code, Request, Response, Status, transport::Server};
 use tonic_reflection::server;
+use tracing::{info, span};
 use tracing_attributes::instrument;
+
 use crate::config::CONFIG;
 
 mod mytracer;
@@ -28,11 +32,12 @@ impl HelloService for MyGreeter {
         Ok(Response::new(HelloResponse { message: response_str.parse().unwrap() }))
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self,request))]
     async fn cache_kv(&self, request: Request<CacheKvRequest>) -> Result<Response<CacheKvResponse>, Status> {
         let mut redis_con = self.redis_con.try_lock().unwrap();
         let request_msg = request.into_inner();
-        log::info!("go to set redis kv {:?}",request_msg);
+
+        info!("go to set redis kv {:?}",request_msg);
 
         match redis_con.set_ex::<_, _, ()>(request_msg.key, request_msg.value, request_msg.timeout as usize) {
             Ok(_) => {
@@ -53,9 +58,8 @@ impl MyGreeter {
     }
 }
 
-
 fn init_redis(config : config::RedisConfig) -> Arc<Mutex<Connection>> {
-    println!("{:?}",config);
+    info!("going to init redis{:?}",config);
     //"redis://default:redispw@localhost:55000"
     let redis_con = redis::Client::open(redis::ConnectionInfo{
         addr: ConnectionAddr::Tcp(config.host, config.port),
@@ -70,10 +74,10 @@ fn init_redis(config : config::RedisConfig) -> Arc<Mutex<Connection>> {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    mytracer::init_global_tracer();
     initialize(&config::CONFIG);
-    //env_logger::builder().filter_level(LevelFilter::Info).init();
-    //let addr = "0.0.0.0:50051".parse()?;
+    //init_logger();
+    mytracer::init_global_tracer();
+
     let addr= SocketAddr::from(([0, 0, 0, 0], CONFIG.port as u16));
     let redis_con = init_redis(config::CONFIG.redis_config.clone());
 
@@ -92,4 +96,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await?;
     Ok(())
 }
+
+
 
