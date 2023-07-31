@@ -10,10 +10,16 @@
 
 ## 静态配置读取
 
-从K8s的configmap中读取到配置文件
+从K8s的configmap中读取到配置文件。
 
 ## Trace接入
 接入Trace追踪，you can refer to [opentelemetry-rust](https://docs.rs/opentelemetry-otlp/0.12.0/opentelemetry_otlp/)
+install jeager to docker :  
+`docker run -d -p6831:6831/udp -p6832:6832/udp -p16686:16686 jaegertracing/all-in-one:latest`
+http://localhost:16686/
+query trace records.
+
+
 ## 服务注册
 连接并注册到consul，consul的地址从配置文件中读取,并将自己注册在consul上
 
