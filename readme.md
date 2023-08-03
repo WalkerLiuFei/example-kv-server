@@ -19,6 +19,8 @@ install jeager to docker :
 http://localhost:16686/
 query trace records.
 
+## metrics接入 
+通过prometheus进行metrics的接入
 
 ## 服务注册
 连接并注册到consul，consul的地址从配置文件中读取,并将自己注册在consul上
@@ -27,4 +29,4 @@ query trace records.
 提供proto-reflection的服务, 可以通过grpcurl进行调用, use command : `grpcurl -plaintext localhost:50051 list`
 
 ## 正常的功能调用
-3. 连接到redis，可以正常的实现set redis
+连接到redis，可以正常的实现set redis
