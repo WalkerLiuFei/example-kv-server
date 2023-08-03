@@ -16,7 +16,7 @@ use tracing::{info, Span};
 use tracing::instrument::WithSubscriber;
 use tracing_attributes::instrument;
 use tracing_opentelemetry::OpenTelemetrySpanExt;
-use tracing_subscriber::fmt::SubscriberBuilder;
+use tracing_subscriber::fmt::{SubscriberBuilder, time};
 
 use crate::config::CONFIG;
 
@@ -51,12 +51,11 @@ impl HelloService for MyGreeter {
         Span::current().set_parent(parent_cx);
         Span::current().record("trace_id", &traceId.to_string().as_str());
 
-       // ctx.metadata. (eyValue::new("trace_id", parent_cx.span().span_context().trace_id().to_string()));
 
         let request_msg = request.into_inner();
 
-        info!("go to set redis kv {:?},{:?}",request_msg,traceId);
-
+        info!("go to set redis kv {:?}",request_msg);
+        another_func();
         match redis_con.set_ex::<_, _, ()>(request_msg.key, request_msg.value, request_msg.timeout as usize) {
             Ok(_) => {
                 Ok(Response::new(CacheKvResponse { message: "set cache success".parse().unwrap() }))
@@ -65,9 +64,14 @@ impl HelloService for MyGreeter {
                 Err(Status::new(Code::Unavailable, err.to_string()))
             }
         }
+
     }
 }
 
+#[instrument()]
+fn another_func(){
+   info!("another func");
+}
 impl MyGreeter {
     fn new(redis_con: Arc<Mutex<Connection>>) -> MyGreeter {
         MyGreeter {
@@ -98,9 +102,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let addr= SocketAddr::from(([0, 0, 0, 0], CONFIG.port as u16));
     let redis_con = init_redis(config::CONFIG.redis_config.clone());
-
-
-
 
     let reflection = server::Builder::configure()
         .register_encoded_file_descriptor_set(FILE_DESCRIPTOR_SET)

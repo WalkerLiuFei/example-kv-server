@@ -15,7 +15,7 @@ use crate::config;
 pub struct MyInterceptor;
 
 impl Interceptor for MyInterceptor {
-    //#[instrument(name = "interceptor", skip(self, request),fields(trace_id) )]
+    #[instrument(name = "interceptor", skip(self, request) )]
     fn call(&mut self, mut request: Request<()>) -> Result<Request<()>, Status> {
 
         // use x-request-id as trace id
@@ -41,23 +41,10 @@ impl Interceptor for MyInterceptor {
             });
         }
 
-       let trace_id =  another_fn(&mut request);
-        info!("called anotherFn");
-
         Ok(request)
     }
 }
 
-#[instrument(name = "interceptor", skip( request),fields(trace_id) )]
-fn another_fn(request: &Request<()>) -> Result<TraceId, TraceId> {
-    let parent_cx = global::get_text_map_propagator(|propagator| {
-        propagator.extract(&MyExtractor(&request))
-    });
-    let trace_id = parent_cx.span().span_context().trace_id();
-    Span::current().set_parent(parent_cx);
-    Span::current().record("trace_id", &trace_id.to_string().as_str());
-    Ok(trace_id)
-}
 
 
 pub struct MyExtractor<'a, T> (pub &'a Request<T>);
