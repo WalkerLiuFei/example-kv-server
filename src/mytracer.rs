@@ -1,13 +1,9 @@
-use opentelemetry::{global, trace};
+use opentelemetry::global;
 use opentelemetry::sdk::propagation::TraceContextPropagator;
-use opentelemetry::trace::FutureExt;
-use tracing::{Event, Id, info, span, Span, Subscriber};
-use tracing::field::Field;
-use tracing::span::Attributes;
-use tracing_subscriber::{Layer, Registry};
-use tracing_subscriber::layer::Context;
+use tracing::{info};
+use tracing_subscriber::Registry;
 use tracing_subscriber::prelude::*;
-use tracing_opentelemetry::OpenTelemetrySpanExt;
+
 use crate::config;
 
 pub fn init_global_tracer() {
@@ -34,71 +30,4 @@ pub fn init_global_tracer() {
 
     // Now you can use tracing and env_logger
     info!("This is an INFO message");
-}
-
-
-
-#[derive(Default)]
-struct CustomSubscriber<S> {
-    inner: S,
-}
-
-impl<S> Layer<S> for CustomSubscriber<S>
-    where
-        S: tracing::Subscriber,
-        S: for<'lookup> tracing_subscriber::registry::LookupSpan<'lookup>,
-{
-    fn on_event(&self, _event: &Event<'_>, ctx: tracing_subscriber::layer::Context<'_, S>) {
-        println!("Got on_event! ctx={:?}", ctx.current_span());
-
-        let span = ctx.current_span();
-        match _event.parent() {
-            None => {}
-            Some(p) => {
-                println!("parent:{:?}", p);
-            }
-        }
-        //println!("Got on_new_span! {:?} ",tracing::);
-        // global::get_text_map_propagator(|propagator| {
-        //
-        // });
-
-        //assert_eq!(, Some(&ValueA("a")));
-        //Span::current().context().get() //.get<trace::TraceId>();
-        //let  trace_id = ;
-        match Span::current().field("trace_id") {
-            None => {}
-            Some(field) => {
-                println!("  trace id 1={:?}", field);
-            }
-        }
-        match span.metadata() {
-            None => {
-
-            }
-            Some(md) => {
-                println!("  level={:?}", span.metadata().unwrap().level());
-                println!("  target={:?}", span.metadata().unwrap().target());
-                println!("  name={:?}", span.metadata().unwrap().name());
-                println!("  fields={:?}", span.metadata().unwrap().fields());
-                println!("  span id={:?}", span.id().unwrap());
-                //println!(" trace id= {:?}", _event.fields().)
-            }
-        }
-
-        //  span.id();
-        // span.parent().map(|parent| {
-        //     println!("  parent={:?}", parent.id());
-        // });
-    }
-    fn on_new_span(&self, attrs: &Attributes<'_>, id: &Id, ctx: Context<'_, S>) {
-        println!("Got on_new_span! {:?} ", id);
-        attrs.fields().iter().for_each(|(k)| {
-            println!("  {:?}", k);
-        });
-    }
-    //
-    // fn on_event(&self, _event: &Event<'_>, ctx: Context<S>) {
-
-    // }
 }

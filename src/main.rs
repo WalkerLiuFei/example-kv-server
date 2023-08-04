@@ -1,4 +1,3 @@
-use std::io::Write;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::thread::sleep;
@@ -8,13 +7,12 @@ use grpc_proto::pb::{CacheKvRequest, CacheKvResponse, HelloRequest, HelloRespons
 use grpc_proto::pb::{FILE_DESCRIPTOR_SET, hello_service_server::HelloService, hello_service_server::HelloServiceServer};
 use lazy_static::initialize;
 use opentelemetry::global;
-use opentelemetry::trace::{TraceContextExt, Tracer};
+use opentelemetry::trace::{TraceContextExt};
 use redis::{Commands, Connection, ConnectionAddr};
 use tokio::sync::Mutex;
 use tonic::{Code, Request, Response, Status, transport::Server};
 use tonic_reflection::server;
 use tracing::{info, Instrument, Span};
-use tracing::instrument::WithSubscriber;
 use tracing_attributes::instrument;
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
@@ -28,7 +26,6 @@ pub struct MyGreeter {
     redis_con: Arc<Mutex<Connection>>,
 }
 
-struct MetadataMap<'a>(&'a tonic::metadata::MetadataMap);
 
 
 #[tonic::async_trait]
@@ -42,14 +39,13 @@ impl HelloService for MyGreeter {
     }
 
     #[instrument( skip(self, request), fields(trace_id,span_id,parent_span_id))]
-    async fn cache_kv(&self, mut request: Request<CacheKvRequest>) -> Result<Response<CacheKvResponse>, Status> {
+    async fn cache_kv(&self, request: Request<CacheKvRequest>) -> Result<Response<CacheKvResponse>, Status> {
         let mut redis_con = self.redis_con.try_lock().unwrap();
         let parent_cx = global::get_text_map_propagator(|propagator| {
             propagator.extract(&interceptor::MyExtractor(&request))
         });
-        let traceId = parent_cx.span().span_context().trace_id();
-        Span::current().set_parent(parent_cx);
-        Span::current().record("trace_id", &traceId.to_string().as_str());
+        Span::current().set_parent(parent_cx.clone());
+        Span::current().record("trace_id", parent_cx.span().span_context().trace_id().to_string().as_str());
 
 
         let request_msg = request.into_inner();
@@ -78,7 +74,7 @@ fn another_func2(){
     info!("another func2");
 
 
-    for i in 0..4 {
+    for _ in 0..4 {
         tokio::spawn(async_func().instrument(Span::current()));
     }
     info!("async func called");
@@ -128,12 +124,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build()
         .unwrap();
 
-    // The stack of middleware that our service will be wrapped in
-    let layer = tower::ServiceBuilder::new()
-         // Apply middleware from tower
-        .timeout(Duration::from_secs(30))
-        .layer(tonic::service::interceptor(interceptor::MyInterceptor::default()))
-        .into_inner();
 
     Server::builder()
         .layer(tonic::service::interceptor(interceptor::MyInterceptor::default()))

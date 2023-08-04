@@ -1,15 +1,11 @@
-use opentelemetry::{Context, global};
+use opentelemetry::global;
 use opentelemetry::propagation::{Extractor, Injector};
- use opentelemetry::trace::{SpanKind, TraceContextExt, TraceId, Tracer};
 use tonic::{Request, Status};
 use tonic::metadata::{MetadataMap, MetadataValue};
 use tonic::service::Interceptor;
-use tracing::{info, span, Span};
 use tracing_attributes::instrument;
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 use uuid::Uuid;
- use tracing_opentelemetry::OpenTelemetrySpanExt;
-
-use crate::config;
 
 #[derive(Debug, Default, Clone)]
 pub struct MyInterceptor;
@@ -28,9 +24,7 @@ impl Interceptor for MyInterceptor {
             Some(_) => {}
         }
 
-        let cx = global::get_text_map_propagator(|propagator| {
-            propagator.extract(&MyExtractor(&request))
-        });
+
 
         if !request.metadata().contains_key("traceparent") {
             global::get_text_map_propagator(|propagator| {
@@ -72,7 +66,7 @@ impl<'a> Injector for MutMetadataMap<'a> {
     /// Set a key and value in the MetadataMap.  Does nothing if the key or value are not valid inputs
     fn set(&mut self, key: &str, value: String) {
         if let Ok(key) = tonic::metadata::MetadataKey::from_bytes(key.as_bytes()) {
-            if let Ok(val) = tonic::metadata::MetadataValue::from_str(&value) {
+            if let Ok(val) = tonic::metadata::MetadataValue::try_from(&value) {
                 self.0.insert(key, val);
             }
         }
