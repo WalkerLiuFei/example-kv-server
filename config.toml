@@ -3,9 +3,14 @@ port = 50051
 host = "localhost"
 log_level = "INFO"
 
+# jeager endpoint to send traces to
+jaeger_endpoint = "127.0.0.1:6831"
+
 [redis_config]
 host = "localhost"
 port = 55000
 user = "default"
 password = "redispw"
+
+
 

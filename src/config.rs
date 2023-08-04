@@ -9,7 +9,7 @@ pub struct APPConfig {
     pub port: i32,
     pub name: String,
     pub log_level: String,
-    pub jeager: Option<Jeager>,
+    pub jaeger_endpoint: Option<String>,
 }
 
 #[derive(Debug, Deserialize,Clone)]
@@ -20,10 +20,7 @@ pub struct RedisConfig {
     pub password: String,
 }
 
-#[derive(Debug, Deserialize)]
-pub struct Jeager {
-    pub host: Option<String>,
-}
+
 
 impl APPConfig {
     pub fn from_file(file_path: &str) -> Result<Self, Box<dyn std::error::Error>> {
