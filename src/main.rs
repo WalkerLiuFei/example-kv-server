@@ -1,22 +1,22 @@
 use std::io::Write;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::thread::sleep;
 use std::time::Duration;
 
 use grpc_proto::pb::{CacheKvRequest, CacheKvResponse, HelloRequest, HelloResponse};
 use grpc_proto::pb::{FILE_DESCRIPTOR_SET, hello_service_server::HelloService, hello_service_server::HelloServiceServer};
 use lazy_static::initialize;
-use opentelemetry::{Context, global, KeyValue, trace};
+use opentelemetry::global;
 use opentelemetry::trace::{TraceContextExt, Tracer};
 use redis::{Commands, Connection, ConnectionAddr};
 use tokio::sync::Mutex;
 use tonic::{Code, Request, Response, Status, transport::Server};
 use tonic_reflection::server;
-use tracing::{info, Span};
+use tracing::{info, Instrument, Span};
 use tracing::instrument::WithSubscriber;
 use tracing_attributes::instrument;
 use tracing_opentelemetry::OpenTelemetrySpanExt;
-use tracing_subscriber::fmt::{SubscriberBuilder, time};
 
 use crate::config::CONFIG;
 
@@ -41,7 +41,7 @@ impl HelloService for MyGreeter {
         Ok(Response::new(HelloResponse { message: response_str.parse().unwrap() }))
     }
 
-    #[instrument( skip(self, request), fields(trace_id))]
+    #[instrument( skip(self, request), fields(trace_id,span_id,parent_span_id))]
     async fn cache_kv(&self, mut request: Request<CacheKvRequest>) -> Result<Response<CacheKvResponse>, Status> {
         let mut redis_con = self.redis_con.try_lock().unwrap();
         let parent_cx = global::get_text_map_propagator(|propagator| {
@@ -68,10 +68,30 @@ impl HelloService for MyGreeter {
     }
 }
 
-#[instrument()]
+#[instrument(name="another_func")]
 fn another_func(){
    info!("another func");
+    another_func2();
 }
+#[instrument(name="another_func2",target="another_func2")]
+fn another_func2(){
+    info!("another func2");
+
+
+    for i in 0..4 {
+        tokio::spawn(async_func().instrument(Span::current()));
+    }
+    info!("async func called");
+
+}
+
+
+#[instrument(name="aync_func")]
+async fn async_func(){
+    info!("async func calling");
+    sleep(Duration::from_secs(1));
+}
+
 impl MyGreeter {
     fn new(redis_con: Arc<Mutex<Connection>>) -> MyGreeter {
         MyGreeter {
